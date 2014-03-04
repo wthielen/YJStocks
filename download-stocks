@@ -2,11 +2,6 @@
 <?php
 define('HISTORY_PATH', "http://info.finance.yahoo.co.jp/history/");
 
-function usage() {
-    echo <<<USAGE
-USAGE;
-}
-
 $options = getopt("c:", array(
     "clean",
     "help"
