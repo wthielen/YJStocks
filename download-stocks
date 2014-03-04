@@ -3,11 +3,8 @@
 define('HISTORY_PATH', "http://info.finance.yahoo.co.jp/history/");
 
 function usage() {
-    echo "Usage: download-stocks [--clean] -c <stock code>" . PHP_EOL;
-    echo PHP_EOL;
-    echo "-c <stock code>: Specify stock code here. For example Biccamera is 3048.T" . PHP_EOL;
-    echo "--clean: Add this to clean the cache for the given stock code, e.g. when downloading a new range of dates" . PHP_EOL;
-    echo "--help: Show this message" . PHP_EOL;
+    echo <<<USAGE
+USAGE;
 }
 
 $options = getopt("c:", array(
@@ -16,7 +13,16 @@ $options = getopt("c:", array(
 ));
 
 if (!isset($options['c']) || isset($options['help'])) {
-    usage();
+    echo <<<USAGE
+Usage: download-stocks [--clean] -c <stock code>
+
+-c <stock code>: Specify stock code here. For example Biccamera is 3048.T
+--clean: Add this to clean the cache for the given stock code, e.g. when downloading a new range of dates
+--help: Show this message
+
+
+USAGE;
+
     exit(1);
 }
 
