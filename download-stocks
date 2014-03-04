@@ -1,0 +1,126 @@
+#!/usr/bin/php -q
+<?php
+define('HISTORY_PATH', "http://info.finance.yahoo.co.jp/history/");
+
+function usage() {
+    echo "Usage: download-stocks [--clean] -c <stock code>" . PHP_EOL;
+    echo PHP_EOL;
+    echo "-c <stock code>: Specify stock code here. For example Biccamera is 3048.T" . PHP_EOL;
+    echo "--clean: Add this to clean the cache for the given stock code, e.g. when downloading a new range of dates" . PHP_EOL;
+    echo "--help: Show this message" . PHP_EOL;
+}
+
+$options = getopt("c:", array(
+    "clean",
+    "help"
+));
+
+if (!isset($options['c']) || isset($options['help'])) {
+    usage();
+    exit(1);
+}
+
+function getHtml($code, $start, $end, $page) {
+    $url = HISTORY_PATH . "?";
+
+    list($sy, $sm, $sd) = explode('-', $start);
+    list($ey, $em, $ed) = explode('-', $end);
+
+    $params = array(
+        'code' => $code,
+        'sy' => $sy,
+        'sm' => $sm,
+        'sd' => $sd,
+        'ey' => $ey,
+        'em' => $em,
+        'ed' => $ed,
+        'tm' => 'd',
+        'p' => $page
+    );
+
+    $url .= http_build_query($params);
+    echo "Downloading $url ..." . PHP_EOL;
+    $ch = curl_init($url);
+    curl_setopt_array($ch, array(
+        CURLOPT_HEADER => false,
+        CURLOPT_RETURNTRANSFER => true
+    ));
+
+    $html = curl_exec($ch);
+    curl_close($ch);
+
+    // Need to clean up, and have anchor-as-name set to false as Yahoo Japan is using
+    // <a name="xx" id="xx"> which DOMDocument does not like
+    $tidy = new tidy();
+    $clean = $tidy->repairString($html, array('anchor-as-name' => false), 'utf8');
+
+    return $clean;
+}
+
+$start = '2008-06-01';
+$end = '2014-01-01';
+
+$cache_dir = getenv('HOME') . "/.cache/yjstocks";
+is_dir($cache_dir) || mkdir($cache_dir, 0750, true);
+
+if (isset($options['clean'])) {
+    array_map('unlink', glob($cache_dir . "/" . $options['c'] . ".*"));
+}
+
+$cols = array(
+    'date', 'open', 'high', 'low', 'close', 'volume', 'adjclose'
+);
+$ncols = count($cols);
+
+$data = array();
+
+$page = 1;
+while (true) {
+    $cache = $cache_dir . "/" . $options['c'] . "." . $page . ".html";
+
+    if (file_exists($cache)) {
+        echo "Opening $cache ..." . PHP_EOL;
+        $html = file_get_contents($cache);
+    } else {
+        $html = getHtml($options['c'], $start, $end, $page);
+        file_put_contents($cache, $html);
+    }
+
+    $dom = DOMDocument::loadHTML($html);
+    $xpath = new DOMXPath($dom);
+    $cells = $xpath->query("//table[@class='boardFin yjSt marB6']//td");
+
+    if ($cells->length == 0) break;
+
+    foreach($cells as $i => $cell) {
+        $value = $cell->nodeValue;
+
+        $col = $i % $ncols;
+        if ($col == 0) {
+            $entry = array();
+            $value = trim(preg_replace('/\pL/u', '-', $value), '-');
+            $date = new DateTime($value);
+            $value = $date->format('Y-m-d');
+        } else {
+            $value = intval(str_replace(",", "", $value));
+        }
+
+        $entry[$cols[$col]] = $value;
+        if ($col == $ncols - 1) $data[] = $entry;
+    }
+
+    $page++;
+}
+
+usort($data, function($u, $v) {
+    if ($u['date'] == $v['date']) return 0;
+
+    return $u['date'] < $v['date'] ? -1 : 1;
+});
+
+$fp = fopen($options['c'] . ".csv", "w");
+fputcsv($fp, $cols);
+foreach($data as $entry) {
+    fputcsv($fp, $entry);
+}
+fclose($fp);
