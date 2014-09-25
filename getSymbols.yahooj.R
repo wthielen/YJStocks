@@ -42,8 +42,8 @@
             if(verbose) cat("downloading ",Symbols.name,".....\n\n")
             
             cols <- c('Open','High','Low','Close','Volume','Adjusted')
-            
             mat <- matrix(0, ncol=7, nrow=0, byrow=TRUE)
+            page <- 1
             while (TRUE) {
                 tmp <- tempfile()
                 download.file(paste(yahoo.URL,
@@ -73,17 +73,15 @@
                     for(n in 2:length(cells)) {
                         entry <- cbind(entry, as.numeric(gsub(",", "", xmlValue(cells[[n]]))))
                     }
-                    
                     mat <- rbind(mat, entry)
                 }
-                
                 page <- page + 1
             }
-            
             if(verbose) cat("done.\n")
             
             fr <- xts(mat[-1, -1], as.Date(mat[-1, 1]), src="yahooj", updated=Sys.time())
-            colnames(fr) <- paste('YJ', toupper(Symbols.name),
+            symname <- paste('YJ', toupper(Symbols.name), sep="")
+            colnames(fr) <- paste(symname,
                                   c('Open','High','Low','Close','Volume','Adjusted'),
                                   sep='.')
             
@@ -91,7 +89,7 @@
             if(is.xts(fr))
                 indexClass(fr) <- index.class
             
-            Symbols[[i]] <- paste('YJ', toupper(Symbols[[i]])) 
+            Symbols[[i]] <- symname
             if(auto.assign)
                 assign(Symbols[[i]],fr,env)
             if(i >= 5 && length(Symbols) > 5) {
