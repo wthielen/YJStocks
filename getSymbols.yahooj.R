@@ -66,7 +66,7 @@
                 
                 for(row in rows) {
                     cells <- getNodeSet(row, "td")
-                    if (length(cells) == 0) next
+                    if (length(cells) != 7) next
                     
                     date <- as.Date(xmlValue(cells[[1]]), format="%Y年%m月%d日")
                     entry <- c(date)
