@@ -71,7 +71,6 @@
             # Process from the start, for easier stocksplit management
             totalrows <- rev(totalrows)
             mat <- matrix(0, ncol=7, nrow=0, byrow=TRUE)
-            factor <- 1
             for(row in totalrows) {
                 cells <- getNodeSet(row, "td")
 
@@ -79,7 +78,7 @@
                 # So extract stocksplit data and recalculate the matrix we have so far
                 if (length(cells) == 2) {
                     ss.data <- as.numeric(na.omit(as.numeric(unlist(strsplit(xmlValue(cells[[2]]), "[^0-9]+")))))
-                    factor <- factor * ss.data[2] / ss.data[1]
+                    factor <- ss.data[2] / ss.data[1]
 
                     mat <- rbind(t(apply(mat[-nrow(mat),], 1, function(x) {
                         x * c(1, rep(1/factor, 4), factor, 1)
