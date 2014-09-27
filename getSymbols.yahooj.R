@@ -71,10 +71,11 @@ require(XML)
             }
             if(verbose) cat("done.\n")
 
-            # Process from the start, for easier stocksplit management
+            # Available columns
             cols <- c('Open','High','Low','Close','Volume','Adjusted')
             if (grepl(".O$", Symbols.name)) cols <- cols[-(5:6)]
 
+            # Process from the start, for easier stocksplit management
             totalrows <- rev(totalrows)
             mat <- matrix(0, ncol=length(cols) + 1, nrow=0, byrow=TRUE)
             for(row in totalrows) {
