@@ -1,6 +1,9 @@
+require(Defaults)
+require(XML)
+
 # getSymbols.yahooj {{{
 "getSymbols.yahooj" <-
-    function(Symbols, env, return.class='xts', index.class="Date",
+    function(Symbols, env=parent.frame(), return.class='xts', index.class="Date",
              from='2007-01-01',
              to=Sys.Date(),
              ...)
@@ -69,14 +72,17 @@
             if(verbose) cat("done.\n")
 
             # Process from the start, for easier stocksplit management
+            cols <- c('Open','High','Low','Close','Volume','Adjusted')
+            if (grepl(".O$", Symbols.name)) cols <- cols[-(5:6)]
+
             totalrows <- rev(totalrows)
-            mat <- matrix(0, ncol=7, nrow=0, byrow=TRUE)
+            mat <- matrix(0, ncol=length(cols) + 1, nrow=0, byrow=TRUE)
             for(row in totalrows) {
                 cells <- getNodeSet(row, "td")
 
                 # 2 cells means it is a stocksplit row
                 # So extract stocksplit data and recalculate the matrix we have so far
-                if (length(cells) == 2) {
+                if (length(cells) == 2 & length(cols) == 6 & nrow(mat) > 1) {
                     ss.data <- as.numeric(na.omit(as.numeric(unlist(strsplit(xmlValue(cells[[2]]), "[^0-9]+")))))
                     factor <- ss.data[2] / ss.data[1]
 
@@ -85,7 +91,7 @@
                     })), mat[nrow(mat),])
                 }
 
-                if (length(cells) != 7) next
+                if (length(cells) != length(cols) + 1) next
 
                 date <- as.Date(xmlValue(cells[[1]]), format="%Y年%m月%d日")
                 entry <- c(date)
@@ -98,9 +104,7 @@
 
             fr <- xts(mat[, -1], as.Date(mat[, 1]), src="yahooj", updated=Sys.time())
             symname <- paste('YJ', toupper(Symbols.name), sep="")
-            colnames(fr) <- paste(symname,
-                                  c('Open','High','Low','Close','Volume','Adjusted'),
-                                  sep='.')
+            colnames(fr) <- paste(symname, cols, sep='.')
 
             fr <- convert.time.series(fr=fr,return.class=return.class)
             if(is.xts(fr))
