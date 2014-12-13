@@ -25,4 +25,4 @@ To download for example Sony (6758) stock data starting from January 2013, use t
 
 Since Japanese stock tickers often start with a number, it is not possible to keep the stock symbol as the name of the variable, so I have had to prepend it with "YJ". If auto-assigning into the environment is enabled, which it is by default, then you will find a new variable called `YJ6758.T` in your environment.
 
-For more information on how to use the `getSymbols` function, or more specifically on the `getSymbols.yahooj` function, please refer to the R Help system.
+For more information on how to use the `getSymbols` function, or more specifically the `getSymbols.yahooj` function, please refer to the R Help system.
