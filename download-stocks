@@ -4,6 +4,9 @@ define('HISTORY_PATH', "http://info.finance.yahoo.co.jp/history/");
 
 $options = getopt("c:", array(
     "clean",
+    "monthly",
+    "weekly",
+    "daily",
     "help"
 ));
 
@@ -13,6 +16,9 @@ Usage: download-stocks [--clean] -c <stock code>
 
 -c <stock code>: Specify stock code here. For example Biccamera is 3048.T
 --clean: Add this to clean the cache for the given stock code, e.g. when downloading a new range of dates
+--monthly: Retrieve monthly data
+--weekly: Retrieve weekly data
+--daily: Retrieve daily data (default)
 --help: Show this message
 
 
@@ -21,7 +27,7 @@ USAGE;
     exit(1);
 }
 
-function getHtml($code, $start, $end, $page) {
+function getHtml($code, $start, $end, $period, $page) {
     $url = HISTORY_PATH . "?";
 
     list($sy, $sm, $sd) = explode('-', $start);
@@ -35,20 +41,13 @@ function getHtml($code, $start, $end, $page) {
         'ey' => $ey,
         'em' => $em,
         'ed' => $ed,
-        'tm' => 'd',
+        'tm' => $period,
         'p' => $page
     );
 
     $url .= http_build_query($params);
     echo "Downloading $url ..." . PHP_EOL;
-    $ch = curl_init($url);
-    curl_setopt_array($ch, array(
-        CURLOPT_HEADER => false,
-        CURLOPT_RETURNTRANSFER => true
-    ));
-
-    $html = curl_exec($ch);
-    curl_close($ch);
+    $html = file_get_contents($url);
 
     // Need to clean up, and have anchor-as-name set to false as Yahoo Japan is using
     // <a name="xx" id="xx"> which DOMDocument does not like
@@ -58,8 +57,12 @@ function getHtml($code, $start, $end, $page) {
     return $clean;
 }
 
-$start = '2008-06-01';
-$end = '2014-01-01';
+$start = '2009-05-01';
+$end = '2014-06-01';
+
+$period = "d";
+if (isset($options['weekly'])) $period = "w";
+if (isset($options['monthly'])) $period = "m";
 
 $cache_dir = getenv('HOME') . "/.cache/yjstocks";
 is_dir($cache_dir) || mkdir($cache_dir, 0750, true);
@@ -83,31 +86,36 @@ while (true) {
         echo "Opening $cache ..." . PHP_EOL;
         $html = file_get_contents($cache);
     } else {
-        $html = getHtml($options['c'], $start, $end, $page);
+        $html = getHtml($options['c'], $start, $end, $period, $page);
         file_put_contents($cache, $html);
     }
 
     $dom = DOMDocument::loadHTML($html);
     $xpath = new DOMXPath($dom);
-    $cells = $xpath->query("//table[@class='boardFin yjSt marB6']//td");
+    $rows = $xpath->query("//table[@class='boardFin yjSt marB6']//tr");
 
-    if ($cells->length == 0) break;
+    if ($rows->length <= 1) break;
 
-    foreach($cells as $i => $cell) {
-        $value = $cell->nodeValue;
+    foreach($rows as $i => $row) {
+        if ($i == 0) continue; // Skip header row
 
-        $col = $i % $ncols;
-        if ($col == 0) {
-            $entry = array();
-            $value = trim(preg_replace('/\pL/u', '-', $value), '-');
-            $date = new DateTime($value);
-            $value = $date->format('Y-m-d');
-        } else {
-            $value = intval(str_replace(",", "", $value));
+        $cellValues = explode("\n", trim($row->nodeValue));
+        if (count($cellValues) != 7) continue; // Skip split rows
+
+        foreach($cellValues as $j => $value) {
+            $col = $j % $ncols;
+            if ($col == 0) {
+                $entry = array();
+                $value = trim(preg_replace('/\pL/u', '-', $value), '-');
+                $date = new DateTime($value);
+                $value = $date->format('Y-m-d');
+            } else {
+                $value = intval(str_replace(",", "", $value));
+            }
+
+            $entry[$cols[$col]] = $value;
+            if ($col == $ncols - 1) $data[] = $entry;
         }
-
-        $entry[$cols[$col]] = $value;
-        if ($col == $ncols - 1) $data[] = $entry;
     }
 
     $page++;
